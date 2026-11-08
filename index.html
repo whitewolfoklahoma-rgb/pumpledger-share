@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PumpLedger — County Reporting, Manifests &amp; Pump-Out Reminders (Demo)</title>
+<style>
+  :root{
+    --navy:#123332; --navy2:#1a4744; --ink:#1c2733; --mut:#5b6b7a; --line:#d7e2e0;
+    --bg:#eef3f3; --card:#ffffff; --accent:#0f766e; --accent2:#0b5cad;
+    --red:#c0392b; --redbg:#fdecea; --amber:#8f5d00; --amberbg:#fdf3e0;
+    --green:#0f7a4d; --greenbg:#e7f5ee; --greybg:#eef1f4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); font-size:14px;}
+  header{background:var(--navy); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  header .logo{font-size:20px; font-weight:700; letter-spacing:.3px;}
+  header .logo span{color:#7fd8cf;}
+  header .sub{color:#bcd4d1; font-size:12.5px;}
+  header .demo-badge{margin-left:auto; background:#f5b301; color:#231a00; font-weight:700; font-size:12px; padding:5px 12px; border-radius:20px; text-transform:uppercase; letter-spacing:.6px;}
+  .companybar{background:var(--navy2); color:#d8eae7; padding:8px 28px; font-size:13px; display:flex; gap:24px; flex-wrap:wrap;}
+  .companybar b{color:#fff;}
+  nav{display:flex; gap:4px; background:#fff; border-bottom:1px solid var(--line); padding:0 20px; position:sticky; top:0; z-index:5; flex-wrap:wrap;}
+  nav button{background:none; border:none; border-bottom:3px solid transparent; padding:13px 16px; font-size:14px; font-weight:600; color:var(--mut); cursor:pointer; min-height:48px;}
+  nav button:hover{color:var(--ink);}
+  nav button.active{color:var(--navy); border-bottom-color:var(--accent);}
+  main{max-width:1180px; margin:0 auto; padding:24px 20px 40px;}
+  section.panel{display:none;}
+  section.panel.active{display:block;}
+  h2{font-size:18px; margin-bottom:4px; color:var(--navy);}
+  .pdesc{color:var(--mut); margin-bottom:18px; font-size:13px;}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:22px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px;}
+  .card .lbl{font-size:12px; text-transform:uppercase; letter-spacing:.7px; color:var(--mut); font-weight:700;}
+  .card .big{font-size:28px; font-weight:800; margin:6px 0 2px; color:var(--navy);}
+  .card .note{font-size:12.5px; color:var(--mut);}
+  .card.risk .big{color:var(--red);}
+  .card.warn .big{color:var(--amber);}
+  .card.good .big{color:var(--green);}
+  .riskbanner{background:var(--redbg); border:1px solid #f0c6c0; color:#7c2318; border-radius:10px; padding:14px 18px; margin-bottom:22px; font-size:13.5px;}
+  .riskbanner b{color:var(--red);}
+  .verifybanner{background:var(--amberbg); border:1px solid #ecd9a8; color:#6b4e00; border-radius:10px; padding:14px 18px; margin-bottom:22px; font-size:13.5px;}
+  .verifybanner b{color:var(--amber);}
+  .statstrip{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-bottom:22px;}
+  .statstrip h3{font-size:14px; color:var(--navy); margin-bottom:8px;}
+  .statstrip li{margin-left:18px; margin-bottom:4px; color:var(--ink); font-size:13.5px;}
+  .statstrip .clock-red{color:var(--red); font-weight:700;}
+  .statstrip .clock-amber{color:var(--amber); font-weight:700;}
+  table{width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  th{background:var(--greybg); text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); padding:10px 12px;}
+  td{padding:10px 12px; border-top:1px solid var(--line); vertical-align:top; font-size:13.5px;}
+  .pill{display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:700; white-space:nowrap;}
+  .pill.current{background:var(--greenbg); color:var(--green);}
+  .pill.soon{background:var(--amberbg); color:var(--amber);}
+  .pill.overdue{background:var(--redbg); color:var(--red);}
+  .pill.none{background:#eceff1; color:#37474f;}
+  .btn{background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:13.5px; font-weight:700; cursor:pointer; min-height:44px;}
+  .btn:hover{background:#0b5a53;}
+  .btn:disabled{background:#b9c9d6; cursor:not-allowed;}
+  .btn.secondary{background:#fff; color:var(--navy); border:1px solid var(--line);}
+  .btn.secondary:hover{background:var(--greybg);}
+  .btn.small{padding:6px 10px; min-height:36px; font-size:12.5px; margin:2px 2px 2px 0;}
+  .btn.blue{background:var(--accent2);}
+  .btn.blue:hover{background:#094f86;}
+  .btn.danger{background:#fff; color:var(--red); border:1px solid #f0c6c0;}
+  .btn.danger:hover{background:var(--redbg);}
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+  .toolbar .spacer{flex:1;}
+  input[type=text], input[type=number], input[type=email], input[type=date], select, textarea{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; background:#fff;}
+  textarea{resize:vertical;}
+  label.flabel{display:block; font-size:12.5px; font-weight:700; color:var(--mut); margin:0 0 6px;}
+  .field{margin-bottom:14px;}
+  .fieldrow{display:flex; gap:8px; align-items:flex-start;}
+  .fieldrow .grow{flex:1;}
+  .micbtn{flex:0 0 auto; width:48px; height:48px; border-radius:8px; border:1px solid var(--line); background:#fff; font-size:20px; cursor:pointer;}
+  .micbtn:hover{background:var(--greybg);}
+  .formcard{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; max-width:820px; margin-bottom:22px;}
+  .formcard h3{font-size:15px; color:var(--navy); margin-bottom:12px;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 16px;}
+  .err{background:var(--redbg); color:#7c2318; border:1px solid #f0c6c0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:none; font-size:13.5px;}
+  .okmsg{background:var(--greenbg); color:#0b5340; border:1px solid #bfe3cf; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:none; font-size:13.5px;}
+  .duecard{background:var(--card); border:1px solid var(--line); border-left:5px solid var(--red); border-radius:10px; padding:16px 20px; margin-bottom:16px;}
+  .duecard.amber{border-left-color:var(--amber);}
+  .duecard.grey{border-left-color:#607d8b;}
+  .duecard h3{font-size:15px; color:var(--navy); margin-bottom:4px;}
+  .duecard .meta{color:var(--mut); font-size:12.5px; margin-bottom:10px;}
+  .checkrow{display:flex; gap:10px; align-items:flex-start; margin:14px 0;}
+  .checkrow input{width:20px; height:20px; margin-top:2px; flex:0 0 auto;}
+  .condrow{display:flex; gap:10px; align-items:center; padding:5px 0; font-size:13.5px;}
+  .condrow input{width:18px; height:18px; flex:0 0 auto;}
+  details{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin-bottom:10px;}
+  details summary{font-weight:700; color:var(--navy); cursor:pointer; font-size:14.5px;}
+  details p{margin-top:8px; color:var(--ink); font-size:13.5px;}
+  .pricegrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-bottom:22px;}
+  .pricecard{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:22px;}
+  .pricecard .price{font-size:34px; font-weight:800; color:var(--navy); margin:8px 0;}
+  .pricecard li{margin-left:18px; margin-bottom:5px; font-size:13.5px;}
+  .manifestdoc{background:var(--card); border:2px solid var(--navy); border-radius:6px; padding:22px 24px; max-width:820px; margin-bottom:22px;}
+  .manifestdoc h3{font-size:16px; color:var(--navy); text-align:center; margin-bottom:2px;}
+  .manifestdoc .msub{text-align:center; color:var(--mut); font-size:12px; margin-bottom:16px;}
+  .manifestdoc table{border:none; border-radius:0;}
+  .manifestdoc td{border-top:1px solid var(--line); padding:7px 10px;}
+  .manifestdoc td.k{width:170px; font-weight:700; color:var(--mut); font-size:12px; text-transform:uppercase; letter-spacing:.5px;}
+  .sigline{margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:24px; font-size:12.5px; color:var(--mut);}
+  .sigline .sig{border-top:1px solid var(--ink); padding-top:6px; margin-top:26px;}
+  pre.report{background:#fbfcfc; border:1px solid var(--line); border-radius:10px; padding:16px 18px; font-size:12.5px; line-height:1.55; white-space:pre-wrap; word-break:break-word; margin-bottom:16px; font-family:ui-monospace,Menlo,Consolas,monospace;}
+  footer{border-top:1px solid var(--line); padding:18px 28px; color:var(--mut); font-size:12.5px; max-width:1180px; margin:0 auto;}
+  #toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--navy); color:#fff; padding:12px 20px; border-radius:10px; font-size:14px; display:none; z-index:50; max-width:90vw; text-align:center;}
+  .empty{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:28px; text-align:center; color:var(--mut);}
+  #printArea{display:none;}
+  @media (max-width:640px){
+    .grid2{grid-template-columns:1fr;}
+    .sigline{grid-template-columns:1fr;}
+    td,th{padding:8px;}
+    .tablewrap{overflow-x:auto;}
+  }
+  @media print{
+    header, nav, main, footer, #toast{display:none !important;}
+    #printArea{display:block; font-size:12px;}
+    #printArea table{border:1px solid #999; width:100%; border-collapse:collapse;}
+    #printArea th, #printArea td{border:1px solid #ccc; padding:6px 8px;}
+    #printArea .manifestdoc{border:2px solid #000;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">Pump<span>Ledger</span></div>
+    <div class="sub">County reporting, manifests &amp; pump-out reminders — the kitchen-table paperwork, done in the truck.</div>
+  </div>
+  <div class="demo-badge">Demo — fictional sample data</div>
+</header>
+<div class="companybar">
+  <div>Company: <b>Two Rivers Septic</b> (fictional demo company)</div>
+  <div>Customers: <b id="barCustCount">60</b></div>
+  <div>Jobs on record: <b id="barJobCount">140</b></div>
+  <div>Today: <b id="barToday"></b></div>
+</div>
+<nav id="mainNav">
+  <button data-view="today" class="active">Today</button>
+  <button data-view="logjob">Log a Job</button>
+  <button data-view="customers">Customers</button>
+  <button data-view="manifests">Manifests</button>
+  <button data-view="reports">County Report</button>
+  <button data-view="due">Due Soon</button>
+  <button data-view="pricing">Pricing &amp; Pilot</button>
+  <button data-view="help">Help</button>
+</nav>
+<main>
+<!-- ============ TODAY ============ -->
+<section class="panel active" id="view-today">
+  <h2>Today at Two Rivers Septic</h2>
+  <p class="pdesc">What got pumped, what's coming due, and where the county numbers stand — one board instead of the log book, the spreadsheet, and memory.</p>
+  <div class="riskbanner" id="todayBanner"></div>
+  <div class="cards">
+    <div class="card good"><div class="lbl">Jobs logged today</div><div class="big" id="tJobsToday">–</div><div class="note" id="tJobsTodayNote">gallons so far today</div></div>
+    <div class="card"><div class="lbl">Gallons this week</div><div class="big" id="tGalWeek">–</div><div class="note">last 7 days, all sites</div></div>
+    <div class="card risk"><div class="lbl">Overdue pump-outs</div><div class="big" id="tOverdue">–</div><div class="note">past their pump interval — routes you're losing</div></div>
+    <div class="card warn"><div class="lbl">Due in 30 days</div><div class="big" id="tDue30">–</div><div class="note">reminder letters ready on Due Soon</div></div>
+    <div class="card"><div class="lbl">Gallons this quarter</div><div class="big" id="tQuarterGal">–</div><div class="note" id="tQuarterNote">county quarterly tally so far</div></div>
+  </div>
+  <div class="statstrip">
+    <h3>🚛 Today's jobs</h3>
+    <ul id="todayJobs"></ul>
+  </div>
+  <div class="statstrip">
+    <h3>⏰ Next pump-outs coming due</h3>
+    <ul id="todayDueList"></ul>
+  </div>
+  <div class="toolbar">
+    <button class="btn" id="todayLogBtn">Log a job</button>
+    <button class="btn blue" id="todayDueBtn">Work the due list</button>
+    <button class="btn secondary" id="todayReportBtn">Build the county report</button>
+  </div>
+  <p class="pdesc">Every job logged once — in the truck, on the phone — becomes the manifest, the customer's history, the county tally, and the next reminder. Nothing gets re-typed at the kitchen table.</p>
+</section>
+
+<!-- ============ LOG A JOB ============ -->
+<section class="panel" id="view-logjob">
+  <h2>Log a job</h2>
+  <p class="pdesc">One record, four artifacts: this entry is the manifest, the customer's pump history, a line in the county report, and the start of the next-due clock. Big fields, one pass, done before you leave the driveway.</p>
+  <div class="formcard">
+    <div class="err" id="jobErr"></div>
+    <div class="okmsg" id="jobOk"></div>
+    <div class="grid2">
+      <div class="field"><label class="flabel" for="jobCustomer">Customer *</label><select id="jobCustomer"></select></div>
+      <div class="field"><label class="flabel" for="jobDate">Date *</label><input type="date" id="jobDate"></div>
+      <div class="field"><label class="flabel" for="jobService">Service *</label>
+        <select id="jobService"><option>Septic pump-out</option><option>Grease trap service</option><option>Inspection / other</option></select></div>
+      <div class="field"><label class="flabel" for="jobGallons">Gallons pumped *</label><input type="number" id="jobGallons" min="0" step="10" placeholder="e.g. 1000"></div>
+      <div class="field"><label class="flabel" for="jobSite">Disposal site *</label><select id="jobSite"></select></div>
+      <div class="field"><label class="flabel" for="jobPhoto">Photo note</label><div class="fieldrow"><div class="grow"><input type="text" id="jobPhoto" placeholder="Demo: photos aren't stored — jot a note"></div><button class="micbtn" data-mic="jobPhoto" title="Voice entry" aria-label="Voice entry for photo note">🎤</button></div></div>
+    </div>
+    <div class="field"><label class="flabel">On-site checks</label>
+      <label class="condrow"><input type="checkbox" class="job-cond" value="Lids located and opened"> Lids located and opened</label>
+      <label class="condrow"><input type="checkbox" class="job-cond" value="Effluent filter cleaned"> Effluent filter cleaned</label>
+      <label class="condrow"><input type="checkbox" class="job-cond" value="Baffles checked — OK"> Baffles checked — OK</label>
+      <label class="condrow"><input type="checkbox" class="job-cond" value="Inlet / outlet tees OK"> Inlet / outlet tees OK</label>
+      <label class="condrow"><input type="checkbox" class="job-cond" value="Problem found — see notes"> Problem found — see notes</label>
+    </div>
+    <div class="field"><label class="flabel" for="jobNotes">Notes</label><div class="fieldrow"><div class="grow"><textarea id="jobNotes" rows="2" placeholder="Gate code, dog in yard, riser recommended…"></textarea></div><button class="micbtn" data-mic="jobNotes" title="Voice entry" aria-label="Voice entry for notes">🎤</button></div></div>
+    <button class="btn" id="jobSaveBtn">Save job — it's now the manifest, the history &amp; the county line</button>
+    <div id="jobSaved" style="display:none; margin-top:14px;">
+      <button class="btn blue" id="jobManifestBtn">View this job's manifest</button>
+      <button class="btn secondary" id="jobAnotherBtn">Log another job</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CUSTOMERS ============ -->
+<section class="panel" id="view-customers">
+  <h2>Customers &amp; tanks</h2>
+  <p class="pdesc">Every customer, the tank at their address, and when it's due again. The history stays with the address — when the house sells, the new owner inherits the record, not a mystery.</p>
+  <div class="toolbar">
+    <div style="flex:1; min-width:200px;">
+      <div class="fieldrow"><div class="grow"><input type="text" id="searchCustomers" placeholder="Search name, address, or town…"></div><button class="micbtn" data-mic="searchCustomers" title="Voice entry" aria-label="Voice search">🎤</button></div>
+    </div>
+    <select id="filterKind" style="width:auto;">
+      <option value="all">All customers</option>
+      <option value="septic">Septic tanks</option>
+      <option value="grease">Grease traps</option>
+      <option value="overdue">Overdue only</option>
+    </select>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Customer</th><th>Address</th><th>System</th><th>Last pumped</th><th>Next due</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="custBody"></tbody>
+  </table>
+  </div>
+  <div class="empty" id="custEmpty" style="display:none;">No customers match. Clear the search or filter, or add the customer below.</div>
+
+  <div class="formcard" id="custHistory" style="display:none; margin-top:22px;">
+    <h3 id="histTitle">History</h3>
+    <div id="histBody"></div>
+    <button class="btn secondary" id="histCloseBtn">Close history</button>
+  </div>
+
+  <div class="formcard" style="margin-top:22px;">
+    <h3>Add a customer</h3>
+    <div class="err" id="cuErr"></div>
+    <div class="grid2">
+      <div class="field"><label class="flabel" for="cuName">Name *</label><div class="fieldrow"><div class="grow"><input type="text" id="cuName" placeholder="e.g. Dale &amp; Ruth Hartman — or a business"></div><button class="micbtn" data-mic="cuName" title="Voice entry" aria-label="Voice entry for name">🎤</button></div></div>
+      <div class="field"><label class="flabel" for="cuKind">System</label>
+        <select id="cuKind"><option value="septic">Septic tank</option><option value="grease">Grease trap</option></select></div>
+      <div class="field"><label class="flabel" for="cuAddress">Street address</label><div class="fieldrow"><div class="grow"><input type="text" id="cuAddress" placeholder="e.g. 118 Harbor Lane"></div><button class="micbtn" data-mic="cuAddress" title="Voice entry" aria-label="Voice entry for address">🎤</button></div></div>
+      <div class="field"><label class="flabel" for="cuCity">Town</label><div class="fieldrow"><div class="grow"><input type="text" id="cuCity" placeholder="e.g. Grove"></div><button class="micbtn" data-mic="cuCity" title="Voice entry" aria-label="Voice entry for town">🎤</button></div></div>
+      <div class="field"><label class="flabel" for="cuZip">ZIP</label><input type="text" id="cuZip" placeholder="e.g. 74344"></div>
+      <div class="field"><label class="flabel" for="cuTank">Tank / trap size (gallons)</label><input type="number" id="cuTank" min="0" step="50" placeholder="e.g. 1000"></div>
+      <div class="field"><label class="flabel" for="cuInterval">Pump every (months)</label><input type="number" id="cuInterval" min="1" step="1" placeholder="Septic: 36 · Grease: 3"></div>
+      <div class="field"><label class="flabel" for="cuNotes">Notes</label><div class="fieldrow"><div class="grow"><input type="text" id="cuNotes" placeholder="Lid location, access, dogs…"></div><button class="micbtn" data-mic="cuNotes" title="Voice entry" aria-label="Voice entry for notes">🎤</button></div></div>
+    </div>
+    <button class="btn" id="cuAddBtn">Add customer</button>
+  </div>
+</section>
+
+<!-- ============ MANIFESTS ============ -->
+<section class="panel" id="view-manifests">
+  <h2>Manifests</h2>
+  <p class="pdesc">Every job record is a manifest — no second form. Pick a job to see its manifest, ready to print.</p>
+  <div class="verifybanner"><b>VERIFY:</b> this is a <b>generic manifest layout</b>. States, counties, and city grease (FOG) programs each have their own required form, fields, and copy rules — confirm yours before relying on any manifest PumpLedger prints. The numbers come from your job records; the form is yours to verify.</div>
+  <div id="manifestDoc"></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Manifest #</th><th>Date</th><th>Customer</th><th>Service</th><th>Gallons</th><th>Disposal site</th><th></th></tr></thead>
+    <tbody id="manifestBody"></tbody>
+  </table>
+  </div>
+  <div class="empty" id="manifestEmpty" style="display:none;">No jobs on record yet — log one and its manifest appears here.</div>
+</section>
+
+<!-- ============ COUNTY REPORT ============ -->
+<section class="panel" id="view-reports">
+  <h2>County report</h2>
+  <p class="pdesc">Gallons by disposal site, town, ZIP, and service for any stretch of time — the tally the county asks for, built from the same records as the manifests. No re-typing, no spreadsheet.</p>
+  <div class="verifybanner"><b>VERIFY:</b> reporting rules, required forms, and due dates <b>vary by county and city</b> — this layout is a generic tally. Confirm your county health department's (and your city FOG program's) current requirements before you file. PumpLedger totals your numbers; you verify the form and the deadline.</div>
+  <div class="toolbar">
+    <select id="repPreset" style="width:auto;">
+      <option value="quarter">This quarter</option>
+      <option value="lastquarter">Last quarter</option>
+      <option value="month">This month</option>
+      <option value="custom">Custom range</option>
+    </select>
+    <input type="date" id="repFrom" style="width:auto;">
+    <span>to</span>
+    <input type="date" id="repTo" style="width:auto;">
+    <span class="spacer"></span>
+    <button class="btn secondary" id="repCsvBtn">Export records (CSV)</button>
+    <button class="btn secondary" id="repPrintBtn">Print report</button>
+    <button class="btn secondary" id="repCopyBtn">Copy report text</button>
+  </div>
+  <div class="cards">
+    <div class="card good"><div class="lbl">Total gallons</div><div class="big" id="repGal">–</div><div class="note">in the selected range</div></div>
+    <div class="card"><div class="lbl">Jobs</div><div class="big" id="repJobs">–</div><div class="note">records in range</div></div>
+    <div class="card"><div class="lbl">Average load</div><div class="big" id="repAvg">–</div><div class="note">gallons per job</div></div>
+  </div>
+  <div class="grid2" style="max-width:none;">
+    <div class="statstrip"><h3>Gallons by disposal site</h3><div class="tablewrap"><table><thead><tr><th>Site</th><th>Jobs</th><th>Gallons</th></tr></thead><tbody id="repBySite"></tbody></table></div></div>
+    <div class="statstrip"><h3>Gallons by service</h3><div class="tablewrap"><table><thead><tr><th>Service</th><th>Jobs</th><th>Gallons</th></tr></thead><tbody id="repByService"></tbody></table></div></div>
+    <div class="statstrip"><h3>Gallons by town</h3><div class="tablewrap"><table><thead><tr><th>Town</th><th>Jobs</th><th>Gallons</th></tr></thead><tbody id="repByCity"></tbody></table></div></div>
+    <div class="statstrip"><h3>Gallons by ZIP</h3><div class="tablewrap"><table><thead><tr><th>ZIP</th><th>Jobs</th><th>Gallons</th></tr></thead><tbody id="repByZip"></tbody></table></div></div>
+  </div>
+  <h3 style="color:var(--navy); margin-bottom:8px;">County report text</h3>
+  <pre class="report" id="countyReportText"></pre>
+</section>
+
+<!-- ============ DUE SOON ============ -->
+<section class="panel" id="view-due">
+  <h2>Due soon — the reminder list</h2>
+  <p class="pdesc">Every forgotten tank is a route sold to the next truck. These customers are past due or coming due, with the reminder letter already written — copy it, send it your way, mark it reminded. In this demo nothing is sent for you.</p>
+  <div class="verifybanner"><b>VERIFY:</b> due dates here run off the <b>pump interval you set for each customer</b> — not a legal deadline. Many city grease (FOG) programs set their own required service cycle; confirm yours and set the customer's interval to match.</div>
+  <div class="statstrip"><h3 id="dueCount">–</h3><p style="font-size:13px; color:var(--mut);">Worst first. The letter uses the customer's real last-pump date from their record — no guessing, no digging through the log book.</p></div>
+  <div id="dueWrap"></div>
+  <div class="empty" id="dueEmpty" style="display:none;">🎉 Nobody is overdue or due in the next 90 days.</div>
+</section>
+
+<!-- ============ PRICING & PILOT ============ -->
+<section class="panel" id="view-pricing">
+  <h2>Pricing</h2>
+  <p class="pdesc">One flat price, sized for a 1–3-truck operation. The category's big suites run $200+/month and are built for fleets — PumpLedger does the pumper's four paper jobs (manifest, county report, customer history, reminders) and nothing you don't need.</p>
+  <div class="pricegrid">
+    <div class="pricecard">
+      <div class="lbl" style="font-size:12px; text-transform:uppercase; letter-spacing:.7px; color:var(--mut); font-weight:700;">PumpLedger</div>
+      <div class="price">$89<span style="font-size:16px; color:var(--mut);">/mo flat</span></div>
+      <ul>
+        <li><b>Unlimited</b> customers, jobs, and manifests — 1 truck or 3</li>
+        <li>One-tap job records that become the manifest, the history &amp; the county line</li>
+        <li>County tallies by disposal site, town, ZIP, and service — any date range</li>
+        <li>Due-soon list with reminder letters written from the real last-pump date</li>
+        <li>Customer &amp; tank history that stays with the address</li>
+        <li>Your data lives on your device in this edition; export anytime</li>
+      </ul>
+    </div>
+    <div class="pricecard">
+      <div class="lbl" style="font-size:12px; text-transform:uppercase; letter-spacing:.7px; color:var(--mut); font-weight:700;">Start here — Records Setup pilot</div>
+      <div class="price">$199<span style="font-size:16px; color:var(--mut);"> one-time</span></div>
+      <ul>
+        <li>Send us your log book and customer list, in any shape — photos fine</li>
+        <li>We digitize every customer, tank, and past pump-out we can read</li>
+        <li>We produce your <b>next county report</b> from the digitized records</li>
+        <li>And your first due-soon list — the reminders that pay for the setup</li>
+        <li>If your records can't be digitized, the $199 comes back</li>
+        <li>The pilot credit applies in full if you continue at $89/mo</li>
+      </ul>
+    </div>
+  </div>
+  <div class="formcard">
+    <h3>Request the $199 Records Setup pilot</h3>
+    <div class="grid2">
+      <div class="field"><label class="flabel" for="pilotName">Your name</label><div class="fieldrow"><div class="grow"><input type="text" id="pilotName" placeholder="e.g. Jamie Cole"></div><button class="micbtn" data-mic="pilotName" title="Voice entry" aria-label="Voice entry for your name">🎤</button></div></div>
+      <div class="field"><label class="flabel" for="pilotCompany">Company</label><div class="fieldrow"><div class="grow"><input type="text" id="pilotCompany" placeholder="e.g. Cole Septic Service"></div><button class="micbtn" data-mic="pilotCompany" title="Voice entry" aria-label="Voice entry for company">🎤</button></div></div>
+      <div class="field"><label class="flabel" for="pilotEmail">Email</label><input type="email" id="pilotEmail" placeholder="you@company.com"></div>
+      <div class="field"><label class="flabel" for="pilotCustomers">Roughly how many customers?</label><input type="number" id="pilotCustomers" min="0" placeholder="e.g. 120"></div>
+    </div>
+    <div class="checkrow"><input type="checkbox" id="pilotTerms"><label for="pilotTerms">I understand this is a request for the $199 Records Setup pilot: PumpLedger digitizes the records I provide and produces my next county report from them, I stay the account holder, and nothing is billed until we confirm the pilot by email.</label></div>
+    <button class="btn" id="pilotSubmit" disabled>Send pilot request</button>
+    <p style="font-size:12.5px; color:var(--mut); margin-top:10px;">Sending opens your own mail app, addressed to our back office. Nothing is charged and nothing is sent until you press send there.</p>
+  </div>
+</section>
+
+<!-- ============ HELP ============ -->
+<section class="panel" id="view-help">
+  <h2>Help</h2>
+  <p class="pdesc">The short version of everything PumpLedger does.</p>
+  <details><summary>How does one job entry do four jobs?</summary><p>On the <b>Log a Job</b> tab you enter the customer, date, gallons, and disposal site once. That single record <b>is</b> the manifest (Manifests tab), a line in the customer's history (Customers tab), a line in the county tally (County Report tab), and it restarts that customer's pump-out clock (Due Soon tab). Nothing is re-typed anywhere.</p></details>
+  <details><summary>How are due dates figured?</summary><p>Each customer has a pump interval you set — 36 months is typical for a septic tank; grease traps are usually a few months, and many city grease programs set their own required cycle (<b>verify yours</b>). Due Soon counts from the customer's most recent <b>pump</b> record (inspections don't reset the clock). Change the interval on the customer and every date re-figures instantly.</p></details>
+  <details><summary>What exactly goes to the county?</summary><p>Whatever your county asks for — and that genuinely varies. The <b>County Report</b> tab totals gallons by disposal site, town, ZIP, and service for any date range and formats it as a clean report you can print or copy. It is a <b>generic tally</b>: confirm your county health department's current form, fields, and deadline before filing — PumpLedger does your numbers, you verify the form.</p></details>
+  <details><summary>Is the manifest official?</summary><p>The Manifests tab prints a complete, generic manifest from the job record — generator, transporter, disposal site, gallons, date, signatures. States, counties, and city FOG programs each have their own required form and copy rules (<b>verify yours</b>). If your program has an official form, the manifest still gives you every number for it in one place.</p></details>
+  <details><summary>How do reminders work?</summary><p><b>Due Soon</b> lists everyone overdue or due within 90 days, worst first, each with a reminder letter written from their real last-pump date. Copy the letter into your mail or text app and send it your way — the demo sends nothing itself. Mark a customer reminded and the card shows the date, so nobody gets double-lettered.</p></details>
+  <details><summary>Where does my data live? How do I back it up?</summary><p>In this demo edition, everything lives <b>on this device, in this browser</b> — no account, nothing uploaded. Export the records CSV from County Report to keep a dated copy, and use Reset below to restore the fictional sample data or Clear to empty the app. Clearing your browser's site data erases your records, so export before you do.</p></details>
+  <div class="toolbar" style="margin-top:16px;">
+    <a class="btn" id="emailUsBtn" href="mailto:whitewolfbackoffice@gmail.com?subject=PumpLedger%20help%20%E2%80%94%20v0.1.0-demo&amp;body=Tell%20us%20what%20you%20were%20trying%20to%20do%20and%20what%20happened%3A%0A%0A">Email us</a>
+    <button class="btn secondary" id="resetDataBtn">Reset demo data</button>
+    <button class="btn danger" id="clearDataBtn">Clear demo data</button>
+  </div>
+  <p style="font-size:12.5px; color:var(--mut);">PumpLedger organizes pumping records and reminders. It is not regulatory advice and does not file anything for you — your county, city, and state set the rules; verify them and file on their forms and deadlines.</p>
+</section>
+</main>
+<footer>
+  <div><b>PumpLedger</b> — a White Wolf Tree Service LLC · Back-Office Services product. Questions or the pilot: whitewolfbackoffice@gmail.com</div>
+  <div style="margin-top:6px;">Demo build v0.1.0-demo · All companies, people, addresses, and records shown are fictional sample data. Works offline; no account; your data stays on this device.</div>
+</footer>
+<div id="toast"></div>
+<div id="printArea"></div>
+
+<script>
+var VERSION = "v0.1.0-demo";
+var LS_KEY = "pumpledger_demo_v1";
+var state = null;
+var SERVICES = ["Septic pump-out", "Grease trap service", "Inspection / other"];
+var PUMP_SERVICES = { "Septic pump-out": true, "Grease trap service": true };
+var CONDITIONS = ["Lids located and opened", "Effluent filter cleaned", "Baffles checked — OK", "Inlet / outlet tees OK", "Problem found — see notes"];
+
+function $(id){ return document.getElementById(id); }
+function esc(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function toast(msg){ var t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(function(){ t.style.display = "none"; }, 3400); }
+function pad2(n){ return (n<10?"0":"") + n; }
+function dISO(d){ return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()); }
+function daysFromNow(n){ var d = new Date(); d.setDate(d.getDate()+n); return dISO(d); }
+function daysAgoISO(n){ return daysFromNow(-n); }
+function todayISO(){ return dISO(new Date()); }
+function diffDays(iso){ if(!iso) return null; var t = new Date(); t.setHours(0,0,0,0); var s = new Date(iso+"T00:00:00"); return Math.round((s - t)/86400000); }
+function fmtDate(iso){ if(!iso) return "—"; var d = new Date(iso+"T00:00:00"); return d.toLocaleDateString("en-US",{month:"short", day:"numeric", year:"numeric"}); }
+function plural(n, w){ return n + " " + w + (n===1?"":"s"); }
+function daysInMonth(y, m){ var leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m-1]; }
+function addMonthsISO(iso, n){
+  var p = iso.split("-"), y = Number(p[0]), m = Number(p[1]), d = Number(p[2]);
+  var total = (y * 12 + (m - 1)) + n; var ny = Math.floor(total / 12), nm = total - ny * 12 + 1;
+  var nd = Math.min(d, daysInMonth(ny, nm));
+  return ny + "-" + pad2(nm) + "-" + pad2(nd);
+}
+function addDaysISO(iso, n){ var d = new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); return dISO(d); }
+function fullMonthsBetween(aIso, bIso){ /* full calendar months from a to b (b >= a), else 0 */
+  if(!aIso || !bIso || bIso < aIso) return 0;
+  var a = aIso.split("-"), b = bIso.split("-");
+  var m = (Number(b[0]) - Number(a[0])) * 12 + (Number(b[1]) - Number(a[1]));
+  if(Number(b[2]) < Number(a[2])) m--;
+  return Math.max(0, m);
+}
+function fmtGal(n){ return Number(n||0).toLocaleString("en-US"); }
+
+/* ---------- deterministic PRNG (mulberry32) so the fictional seed is stable ---------- */
+function mulberry32(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ---------- seed data (all fictional) ---------- */
+function defaultSites(){
+  return [
+    {id:"s1", name:"Two Rivers Land Application Site (fictional)"},
+    {id:"s2", name:"Sample County Treatment Plant (fictional)"},
+    {id:"s3", name:"Grease Rendering Co-op (fictional)"}
+  ];
+}
+function seedData(){
+  var rnd = mulberry32(20261108);
+  function pick(arr){ return arr[Math.floor(rnd()*arr.length)]; }
+  function between(lo, hi){ return lo + Math.floor(rnd()*(hi-lo+1)); }
+  var first = ["Dale","Ruth","Marcus","Elena","Tom","Priya","Walter","June","Harold","Betty","Curtis","Alma","Roy","Nadine","Glen","Fern","Otis","Mabel","Clyde","Vera","Hank","Lorna","Earl","Opal","Floyd","Gail","Amos","Dora","Silas","Iris","Boyd","Myra","Lyle","Edna","Ross","Cleo","Ned","Agnes","Ezra","Lula","Homer","Sadie","Clifton","Rena","Vern","Ida","Morris","Pearl"];
+  var last = ["Hartman","Okafor","Delgado","Novak","Prescott","Whitfield","Barrett","Kowalczyk","Sandoval","Mercer","Hollis","Truong","Beaumont","Kessler","Redmond","Vance","Albright","Moreau","Serrano","Callahan","Whitaker","Lindqvist","Marsh","Ouellette","Stanton","Reyes","Blackwood","Sorensen","Pruitt","Halvorsen"];
+  var biz = ["Route 66 Diner","Lakeside Grill","Grand Burger Co","Marina Café","QuickStop Kitchen","El Toro Mexican Food","Harbor Fried Chicken","The Copper Skillet","Lakeview BBQ","Golden Wok","Prairie Smokehouse","Dockside Deli"];
+  var streets = ["Harbor Ln","Lakeshore Dr","Elm St","Cedar Ave","Main St","Sunset Blvd","Hickory Rd","Lakeview Ter","Oak St","Pine Hollow Rd"];
+  var towns = [["Grove","74344"],["Afton","74331"],["Ketchum","74349"],["Vinita","74301"],["Jay","74346"]];
+
+  var customers = [], ci = 0;
+  function addCustomer(name, kind, tank, interval){
+    ci++;
+    var t = pick(towns);
+    customers.push({ id: ci, name: name, address: between(12, 9800) + " " + pick(streets), city: t[0], zip: t[1],
+      kind: kind, tank: tank, intervalMonths: interval, notes: "", lastReminded: null, _lastPump: null, _n: 0 });
+  }
+  for(var g=0; g<12; g++) addCustomer(biz[g], "grease", pick([250,500,500,750,1000]), pick([2,3,3,3,6]));
+  for(var s=0; s<48; s++) addCustomer(first[s] + " " + last[Math.floor(rnd()*last.length)], "septic", pick([750,1000,1000,1250,1500]), pick([24,36,36,36,48,60]));
+
+  /* most-recent pump dates — engineered so exactly 9 septic customers are overdue (one by 14 months) */
+  var today = todayISO();
+  var overdueExtras = [14, 11, 9, 8, 6, 5, 4, 3, 2]; /* months past due, applied to septic customers #13–#21 */
+  customers.forEach(function(c, ix){
+    if(c.kind === "grease"){
+      var ivDays = Math.round(c.intervalMonths * 30.44);
+      c._lastPump = daysAgoISO(between(5, Math.max(6, ivDays - 8)));           /* current; a few due soon */
+    } else if(ix >= 12 && ix <= 20){
+      c._lastPump = addDaysISO(addMonthsISO(today, -(c.intervalMonths + overdueExtras[ix-12])), -6);
+    } else if(ix >= 30 && ix <= 33){
+      c._lastPump = daysAgoISO(0);                                            /* pumped today */
+    } else if(rnd() < 0.30){
+      c._lastPump = addDaysISO(addMonthsISO(today, -c.intervalMonths), between(3, 45)); /* due in 3–45 days */
+    } else {
+      c._lastPump = daysAgoISO(between(20, 160));                             /* comfortably current */
+    }
+  });
+
+  var records = [], rid = 0;
+  customers.forEach(function(c, ix){
+    var n = ix < 20 ? 3 : 2;                                                  /* 20×3 + 40×2 = 140 records */
+    c._n = n;
+    var stepDays = Math.round(c.intervalMonths * 30.44);
+    for(var k=0; k<n; k++){
+      var off = -diffDays(c._lastPump) + (k === 0 ? 0 : Math.round(k * stepDays * (0.92 + rnd()*0.16)));
+      rid++;
+      var gallons = c.kind === "grease" ? Math.round(c.tank * (0.5 + rnd()*0.6) / 10) * 10
+                                        : Math.round(c.tank * (0.8 + rnd()*0.35) / 10) * 10;
+      var conds = CONDITIONS.filter(function(){ return rnd() < 0.34; });
+      records.push({ id: rid, customerId: c.id, date: daysAgoISO(off),
+        service: c.kind === "grease" ? "Grease trap service" : "Septic pump-out",
+        gallons: gallons, siteId: c.kind === "grease" ? "s3" : (rnd() < 0.5 ? "s1" : "s2"),
+        conditions: conds, photo: "", notes: "" });
+    }
+  });
+  customers.forEach(function(c){ delete c._lastPump; delete c._n; });
+  return { settings:{company:"Two Rivers Septic", county:"Sample County"}, sites: defaultSites(),
+    customers: customers, records: records, nextCustomerId: 61, nextRecordId: 141 };
+}
+
+/* ---------- storage integrity: entry/field-level sanitize on load (deep pattern) ---------- */
+function isPlainObject(x){ return !!x && typeof x === "object" && !Array.isArray(x); }
+function asStoredString(x){ return x === null || x === undefined ? "" : String(x); }
+function asNonNegativeNumber(x, fallback){ return typeof x === "number" && isFinite(x) && x >= 0 ? x : fallback; }
+function asPositiveInteger(x){ return typeof x === "number" && isFinite(x) && Math.floor(x) === x && x > 0 ? x : null; }
+function isValidDateString(x){
+  if(typeof x !== "string") return false;
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x); if(!m) return false;
+  var year = Number(m[1]), month = Number(m[2]), day = Number(m[3]);
+  if(month < 1 || month > 12 || day < 1) return false;
+  return day <= daysInMonth(year, month);
+}
+function sanitizeState(p){
+  var settings = {company:"Two Rivers Septic", county:"Sample County"};
+  if(isPlainObject(p.settings)){
+    if(typeof p.settings.company === "string" && p.settings.company) settings.company = p.settings.company;
+    if(typeof p.settings.county === "string" && p.settings.county) settings.county = p.settings.county;
+  }
+  var sites = [], siteIds = {}, seenSiteIds = {};
+  (Array.isArray(p.sites) ? p.sites : []).forEach(function(s){
+    if(!isPlainObject(s) || typeof s.id !== "string") return;
+    var id = s.id; if(!id || seenSiteIds[id]) return;
+    seenSiteIds[id] = true; siteIds[id] = true;
+    sites.push({id:id, name: asStoredString(s.name) || "Disposal site"});
+  });
+  if(!sites.length){ sites = defaultSites(); sites.forEach(function(s){ siteIds[s.id] = true; }); }
+  var customers = [], custIds = {}, seenCustIds = {};
+  (Array.isArray(p.customers) ? p.customers : []).forEach(function(c){
+    if(!isPlainObject(c)) return;
+    var id = asPositiveInteger(c.id);
+    if(id === null || seenCustIds[id]) return;
+    seenCustIds[id] = true; custIds[id] = true;
+    var kind = c.kind === "grease" ? "grease" : "septic";
+    var interval = asPositiveInteger(c.intervalMonths);
+    customers.push({ id: id, name: asStoredString(c.name), address: asStoredString(c.address), city: asStoredString(c.city),
+      zip: asStoredString(c.zip), kind: kind, tank: asNonNegativeNumber(c.tank, 1000),
+      intervalMonths: interval === null ? (kind === "grease" ? 3 : 36) : interval,
+      notes: asStoredString(c.notes), lastReminded: isValidDateString(c.lastReminded) ? c.lastReminded : null });
+  });
+  var records = [], seenRecIds = {};
+  (Array.isArray(p.records) ? p.records : []).forEach(function(r){
+    if(!isPlainObject(r)) return;
+    var id = asPositiveInteger(r.id);
+    if(id === null || seenRecIds[id]) return;
+    var customerId = asPositiveInteger(r.customerId);
+    if(customerId === null || !custIds[customerId]) return;
+    if(!isValidDateString(r.date)) return;
+    seenRecIds[id] = true;
+    var conds = [], seenCond = {};
+    if(Array.isArray(r.conditions)) r.conditions.forEach(function(x){ if(typeof x === "string" && !seenCond[x]){ seenCond[x] = true; conds.push(x); } });
+    records.push({ id: id, customerId: customerId, date: r.date,
+      service: SERVICES.indexOf(r.service) >= 0 ? r.service : "Septic pump-out",
+      gallons: asNonNegativeNumber(r.gallons, 0),
+      siteId: (typeof r.siteId === "string" && siteIds[r.siteId]) ? r.siteId : sites[0].id,
+      conditions: conds, photo: asStoredString(r.photo), notes: asStoredString(r.notes) });
+  });
+  var maxCustId = customers.reduce(function(m, c){ return Math.max(m, c.id); }, 0);
+  var maxRecId = records.reduce(function(m, r){ return Math.max(m, r.id); }, 0);
+  var nextCustomerId = asPositiveInteger(p.nextCustomerId);
+  if(nextCustomerId === null || nextCustomerId <= maxCustId) nextCustomerId = maxCustId + 1;
+  var nextRecordId = asPositiveInteger(p.nextRecordId);
+  if(nextRecordId === null || nextRecordId <= maxRecId) nextRecordId = maxRecId + 1;
+  return {settings:settings, sites:sites, customers:customers, records:records, nextCustomerId:nextCustomerId, nextRecordId:nextRecordId};
+}
+function load(){
+  try{ var raw = localStorage.getItem(LS_KEY); if(raw){ var p = JSON.parse(raw); if(isPlainObject(p) && Array.isArray(p.customers) && Array.isArray(p.records) && Array.isArray(p.sites)){ var healed = sanitizeState(p); save(healed); return healed; } } }catch(e){}
+  var s = seedData(); save(s); return s;
+}
+function save(s){ try{ localStorage.setItem(LS_KEY, JSON.stringify(s||state)); }catch(e){} }
+
+/* ---------- engine ---------- */
+function customerById(id){ return state.customers.find(function(c){ return c.id === id; }) || null; }
+function siteById(id){ return state.sites.find(function(s){ return s.id === id; }) || null; }
+function customerRecords(cid){ return state.records.filter(function(r){ return r.customerId === cid; }); }
+function lastPumpRecord(c){
+  var best = null;
+  customerRecords(c.id).forEach(function(r){ if(PUMP_SERVICES[r.service] && (!best || r.date > best.date)) best = r; });
+  return best;
+}
+function dueInfo(c){
+  var lp = lastPumpRecord(c);
+  if(!lp) return {status:"none", lastPump:null, due:null, dueDays:null};
+  var due = addMonthsISO(lp.date, c.intervalMonths);
+  var dd = diffDays(due);
+  var status = dd < 0 ? "overdue" : (dd <= 30 ? "soon" : (dd <= 90 ? "soon90" : "current"));
+  return {status:status, lastPump:lp.date, due:due, dueDays:dd};
+}
+function overduePhrase(c, info){
+  if(info.status === "none") return "No pump-out on record";
+  if(info.dueDays >= 0) return "due " + (info.dueDays === 0 ? "today" : "in " + plural(info.dueDays, "day"));
+  var months = fullMonthsBetween(info.due, todayISO());
+  if(months >= 1) return plural(months, "month") + " overdue";
+  return plural(-info.dueDays, "day") + " overdue";
+}
+function statusPill(info){
+  if(info.status === "overdue") return '<span class="pill overdue">Overdue</span>';
+  if(info.status === "soon") return '<span class="pill soon">Due soon</span>';
+  if(info.status === "soon90") return '<span class="pill soon">Due in 90 days</span>';
+  if(info.status === "none") return '<span class="pill none">No record</span>';
+  return '<span class="pill current">Current</span>';
+}
+function recordsInRange(from, to){ return state.records.filter(function(r){ return r.date >= from && r.date <= to; }); }
+function sumGal(list){ return list.reduce(function(a, r){ return a + (r.gallons || 0); }, 0); }
+function groupTotals(list, keyFn, labelFn){
+  var m = {}, order = [];
+  list.forEach(function(r){ var k = keyFn(r); if(!(k in m)){ m[k] = {label: labelFn(r), jobs:0, gallons:0}; order.push(k); } m[k].jobs++; m[k].gallons += r.gallons || 0; });
+  return order.map(function(k){ return m[k]; }).sort(function(a, b){ return b.gallons - a.gallons; });
+}
+function quarterRange(offset){ /* offset 0 = this quarter, -1 = last quarter */
+  var now = new Date(), y = now.getFullYear(), qm = Math.floor(now.getMonth()/3)*3 + offset*3;
+  var start = new Date(y, qm, 1), end = new Date(y, qm+3, 0);
+  var t = todayISO(), s = dISO(start), e = dISO(end);
+  return {from: s, to: offset === 0 && e > t ? t : e};
+}
+function manifestNo(r){ return "PL-" + ("0000" + r.id).slice(-4); }
+</script>
+<script>
+/* ---------- views ---------- */
+function showView(name){
+  var panels = document.querySelectorAll("section.panel");
+  for(var i=0;i<panels.length;i++){ panels[i].classList.toggle("active", panels[i].id === "view-" + name); }
+  var btns = document.querySelectorAll("#mainNav button");
+  for(var j=0;j<btns.length;j++){ btns[j].classList.toggle("active", btns[j].getAttribute("data-view") === name); }
+}
+var navBtns = document.querySelectorAll("#mainNav button");
+for(var n=0;n<navBtns.length;n++){ navBtns[n].addEventListener("click", function(){ showView(this.getAttribute("data-view")); }); }
+
+function renderToday(){
+  var t = todayISO();
+  var todayRecs = state.records.filter(function(r){ return r.date === t; });
+  $("tJobsToday").textContent = todayRecs.length;
+  $("tJobsTodayNote").textContent = fmtGal(sumGal(todayRecs)) + " gallons so far today";
+  var week = recordsInRange(daysAgoISO(6), t);
+  $("tGalWeek").textContent = fmtGal(sumGal(week));
+  var infos = state.customers.map(function(c){ return {c:c, info:dueInfo(c)}; });
+  var overdue = infos.filter(function(x){ return x.info.status === "overdue" || x.info.status === "none"; });
+  var due30 = infos.filter(function(x){ return x.info.status === "soon"; });
+  $("tOverdue").textContent = overdue.length;
+  $("tDue30").textContent = due30.length;
+  var q = quarterRange(0);
+  var qRecs = recordsInRange(q.from, q.to);
+  $("tQuarterGal").textContent = fmtGal(sumGal(qRecs));
+  var now = new Date(), qEnd = dISO(new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3 + 3, 0));
+  $("tQuarterNote").textContent = state.settings.county + " tally so far · quarter ends " + fmtDate(qEnd) + " (VERIFY the filing deadline)";
+  $("barCustCount").textContent = state.customers.length;
+  $("barJobCount").textContent = state.records.length;
+  $("barToday").textContent = fmtDate(t);
+  if(!state.customers.length){ $("todayBanner").innerHTML = "No customers yet. Add your first on the Customers tab."; }
+  else if(overdue.length){ $("todayBanner").innerHTML = "<b>" + overdue.length + " customers are past due for a pump-out</b> — the longest is " + (function(){ var worst = overdue.slice().sort(function(a,b){ return (a.info.due||"9999") < (b.info.due||"9999") ? -1 : 1; })[0]; return esc(worst.c.name) + ", " + esc(overduePhrase(worst.c, worst.info)); })() + ". Every week they wait is a week the next truck can win the route. The letters are written on Due Soon."; }
+  else { $("todayBanner").innerHTML = "<b>Nobody is past due.</b> Keep the reminders rolling — the next due dates are already counting down."; }
+  $("todayJobs").innerHTML = todayRecs.length ? todayRecs.map(function(r){ var c = customerById(r.customerId); return "<li><b>" + esc(c ? c.name : "?") + "</b> — " + esc(r.service) + ", " + fmtGal(r.gallons) + " gal → " + esc((siteById(r.siteId)||{}).name || "") + "</li>"; }).join("") : "<li>No jobs logged yet today. First pump of the day goes on Log a Job.</li>";
+  var upcoming = infos.filter(function(x){ return x.info.due; }).sort(function(a, b){ return a.info.due < b.info.due ? -1 : 1; }).slice(0, 5);
+  $("todayDueList").innerHTML = upcoming.length ? upcoming.map(function(x){ var cls = x.info.dueDays < 0 ? "clock-red" : (x.info.dueDays <= 30 ? "clock-amber" : ""); return "<li><b>" + esc(x.c.name) + "</b> (" + esc(x.c.address) + ", " + esc(x.c.city) + ") — last pumped " + fmtDate(x.info.lastPump) + ", <span class=\"" + cls + "\">" + esc(overduePhrase(x.c, x.info)) + "</span> (" + fmtDate(x.info.due) + ")</li>"; }).join("") : "<li>No pump-outs on the calendar yet.</li>";
+}
+$("todayLogBtn").addEventListener("click", function(){ showView("logjob"); });
+$("todayDueBtn").addEventListener("click", function(){ showView("due"); });
+$("todayReportBtn").addEventListener("click", function(){ showView("reports"); });
+
+/* ---------- log a job ---------- */
+function renderJobOptions(){
+  var cs = $("jobCustomer"), cur = cs.value;
+  cs.innerHTML = state.customers.map(function(c){ return "<option value=\"" + c.id + "\">" + esc(c.name) + " — " + esc(c.address) + ", " + esc(c.city) + "</option>"; }).join("");
+  if(cur && customerById(Number(cur))) cs.value = cur;
+  var ss = $("jobSite"), scur = ss.value;
+  ss.innerHTML = state.sites.map(function(s){ return "<option value=\"" + s.id + "\">" + esc(s.name) + "</option>"; }).join("");
+  if(scur && siteById(scur)) ss.value = scur;
+}
+var lastSavedRecordId = null;
+function rearmJobBtn(){ var sb = $("jobSaveBtn"); if(sb && sb.disabled){ sb.disabled = false; sb.textContent = "Save job — it's now the manifest, the history & the county line"; } $("jobSaved").style.display = "none"; }
+document.querySelectorAll("#view-logjob input, #view-logjob select, #view-logjob textarea").forEach(function(el){ el.addEventListener("input", rearmJobBtn); el.addEventListener("change", rearmJobBtn); });
+$("jobSaveBtn").addEventListener("click", function(){
+  function err(m){ $("jobErr").textContent = m; $("jobErr").style.display = "block"; }
+  $("jobErr").style.display = "none"; $("jobOk").style.display = "none";
+  var c = customerById(Number($("jobCustomer").value));
+  if(!c){ err("Pick the customer first — the record has to belong to somebody's tank."); return; }
+  var date = $("jobDate").value;
+  if(!isValidDateString(date)){ err("Enter the job date — the due-soon clock and the county report both run off it."); return; }
+  var service = $("jobService").value;
+  var galRaw = $("jobGallons").value;
+  var gallons = Number(galRaw);
+  if(galRaw === "" || !isFinite(gallons) || gallons < 0){ err("Enter the gallons pumped — the county tally runs off that number."); return; }
+  if(PUMP_SERVICES[service] && gallons === 0){ err("A pump-out with 0 gallons? Enter the gallons pumped, or change the service to Inspection / other."); return; }
+  var site = siteById($("jobSite").value);
+  if(!site){ err("Pick the disposal site — the county report totals gallons by site."); return; }
+  var conds = [];
+  document.querySelectorAll(".job-cond").forEach(function(b){ if(b.checked) conds.push(b.value); });
+  var rec = { id: state.nextRecordId++, customerId: c.id, date: date, service: service, gallons: gallons,
+    siteId: site.id, conditions: conds, photo: $("jobPhoto").value.trim(), notes: $("jobNotes").value.trim() };
+  state.records.push(rec); save(); renderAll();
+  lastSavedRecordId = rec.id;
+  var info = dueInfo(c);
+  $("jobOk").textContent = "Saved — " + manifestNo(rec) + " for " + c.name + ": " + fmtGal(gallons) + " gallons on " + fmtDate(date) + "." + (PUMP_SERVICES[service] ? " Their next pump-out is due " + fmtDate(info.due) + "." : " (Inspections don't reset the pump-out clock.)");
+  $("jobOk").style.display = "block";
+  var sb = $("jobSaveBtn"); sb.disabled = true; sb.textContent = "Saved ✓ — change any field to log another job";
+  $("jobSaved").style.display = "block";
+  toast("Job saved for " + c.name + " — manifest " + manifestNo(rec) + " is ready.");
+});
+$("jobManifestBtn").addEventListener("click", function(){ if(lastSavedRecordId !== null){ showManifest(lastSavedRecordId); showView("manifests"); } });
+$("jobAnotherBtn").addEventListener("click", function(){ rearmJobBtn(); $("jobGallons").value = ""; $("jobNotes").value = ""; $("jobPhoto").value = ""; document.querySelectorAll(".job-cond").forEach(function(b){ b.checked = false; }); });
+
+/* ---------- customers ---------- */
+function renderCustomers(){
+  var q = $("searchCustomers").value.trim().toLowerCase(), f = $("filterKind").value;
+  var rows = state.customers.filter(function(c){
+    var info = dueInfo(c);
+    if(f === "septic" && c.kind !== "septic") return false;
+    if(f === "grease" && c.kind !== "grease") return false;
+    if(f === "overdue" && info.status !== "overdue" && info.status !== "none") return false;
+    if(q && (c.name + " " + c.address + " " + c.city + " " + c.zip).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+  rows.sort(function(a, b){ var da = dueInfo(a).due || "9999-99-99", db = dueInfo(b).due || "9999-99-99"; return da < db ? -1 : 1; });
+  $("custBody").innerHTML = rows.map(function(c){ var info = dueInfo(c);
+    return "<tr><td><b>" + esc(c.name) + "</b>" + (c.notes ? "<br><span style=\"color:var(--mut); font-size:12.5px;\">" + esc(c.notes) + "</span>" : "") + "</td>" +
+      "<td>" + esc(c.address) + "<br><span style=\"font-size:12.5px; color:var(--mut);\">" + esc(c.city) + " " + esc(c.zip) + "</span></td>" +
+      "<td>" + (c.kind === "grease" ? "Grease trap" : "Septic tank") + "<br><span style=\"font-size:12.5px; color:var(--mut);\">" + fmtGal(c.tank) + " gal · every " + c.intervalMonths + " mo</span></td>" +
+      "<td>" + (info.lastPump ? fmtDate(info.lastPump) : "—") + "</td>" +
+      "<td>" + (info.due ? fmtDate(info.due) + "<br><span style=\"font-size:12.5px; color:var(--mut);\">" + esc(overduePhrase(c, info)) + "</span>" : "—") + "</td>" +
+      "<td>" + statusPill(info) + "</td>" +
+      "<td><button class=\"btn small\" data-act=\"history\" data-id=\"" + c.id + "\">History</button><button class=\"btn small secondary\" data-act=\"logjob\" data-id=\"" + c.id + "\">Log job</button><button class=\"btn small danger\" data-act=\"delete\" data-id=\"" + c.id + "\">Delete</button></td></tr>";
+  }).join("");
+  $("custEmpty").style.display = rows.length ? "none" : "block";
+  var btns = document.querySelectorAll("#custBody button");
+  for(var i=0;i<btns.length;i++){ btns[i].addEventListener("click", onCustomerAction); }
+}
+function onCustomerAction(){
+  var id = Number(this.getAttribute("data-id")), act = this.getAttribute("data-act");
+  var c = customerById(id); if(!c) return;
+  if(act === "history"){ showHistory(c); }
+  if(act === "logjob"){ $("jobCustomer").value = String(id); showView("logjob"); }
+  if(act === "delete"){
+    var n = customerRecords(id).length;
+    if(!confirm("Delete " + c.name + " and their " + n + " job record" + (n===1?"":"s") + "? This cannot be undone.")) return;
+    state.customers = state.customers.filter(function(x){ return x.id !== id; });
+    state.records = state.records.filter(function(r){ return r.customerId !== id; });
+    if(lastSavedRecordId !== null && !state.records.some(function(r){ return r.id === lastSavedRecordId; })) lastSavedRecordId = null;
+    save(); renderAll(); toast(c.name + " deleted.");
+  }
+}
+function showHistory(c){
+  var recs = customerRecords(c.id).slice().sort(function(a, b){ return a.date < b.date ? 1 : -1; });
+  var info = dueInfo(c);
+  $("histTitle").textContent = "History — " + c.name;
+  $("histBody").innerHTML =
+    "<p style=\"font-size:13.5px; margin-bottom:10px;\">" + esc(c.address) + ", " + esc(c.city) + " " + esc(c.zip) + " · " + (c.kind === "grease" ? "Grease trap" : "Septic tank") + " " + fmtGal(c.tank) + " gal · pumped every " + c.intervalMonths + " months · " + statusPill(info) + (info.due ? " — next due " + fmtDate(info.due) + " (" + esc(overduePhrase(c, info)) + ")" : "") + "</p>" +
+    (recs.length ? "<div class=\"tablewrap\"><table><thead><tr><th>Date</th><th>Manifest</th><th>Service</th><th>Gallons</th><th>Disposal site</th><th>Checks / notes</th></tr></thead><tbody>" +
+      recs.map(function(r){ return "<tr><td>" + fmtDate(r.date) + "</td><td>" + manifestNo(r) + "</td><td>" + esc(r.service) + "</td><td>" + fmtGal(r.gallons) + "</td><td>" + esc((siteById(r.siteId)||{}).name || "") + "</td><td>" + esc([r.conditions.join("; "), r.notes].filter(Boolean).join(" — ")) + "</td></tr>"; }).join("") +
+      "</tbody></table></div>" : "<p style=\"color:var(--mut);\">No jobs on record for this address yet.</p>") +
+    "<p style=\"font-size:12.5px; color:var(--mut); margin-top:10px;\">This history belongs to the address — if the property sells, the record stays with the tank.</p>";
+  $("custHistory").style.display = "block";
+}
+$("histCloseBtn").addEventListener("click", function(){ $("custHistory").style.display = "none"; });
+$("searchCustomers").addEventListener("input", renderCustomers);
+$("filterKind").addEventListener("change", renderCustomers);
+$("cuAddBtn").addEventListener("click", function(){
+  var name = $("cuName").value.trim();
+  if(!name){ $("cuErr").textContent = "Give the customer a name first — that's the one thing we can't guess."; $("cuErr").style.display = "block"; return; }
+  $("cuErr").style.display = "none";
+  var kind = $("cuKind").value;
+  var tankN = Number($("cuTank").value), intN = Number($("cuInterval").value);
+  var c = { id: state.nextCustomerId++, name: name, address: $("cuAddress").value.trim(), city: $("cuCity").value.trim(),
+    zip: $("cuZip").value.trim(), kind: kind,
+    tank: isFinite(tankN) && tankN > 0 ? tankN : (kind === "grease" ? 500 : 1000),
+    intervalMonths: isFinite(intN) && intN >= 1 ? Math.floor(intN) : (kind === "grease" ? 3 : 36),
+    notes: $("cuNotes").value.trim(), lastReminded: null };
+  state.customers.push(c); save(); renderAll();
+  ["cuName","cuAddress","cuCity","cuZip","cuTank","cuInterval","cuNotes"].forEach(function(id){ $(id).value = ""; });
+  toast(name + " added — no pump-out on record yet, so they're on the due list until their first job is logged.");
+});
+</script>
+<script>
+/* ---------- manifests ---------- */
+var currentManifestId = null;
+function manifestHtml(r){
+  var c = customerById(r.customerId), s = siteById(r.siteId);
+  return "<div class=\"manifestdoc\"><h3>WASTE MANIFEST — GENERIC LAYOUT (VERIFY)</h3>" +
+    "<div class=\"msub\">Verify your state / county / city program's required form, fields &amp; copy rules before use · Manifest " + manifestNo(r) + "</div>" +
+    "<table>" +
+    "<tr><td class=\"k\">Date of service</td><td>" + fmtDate(r.date) + "</td></tr>" +
+    "<tr><td class=\"k\">Generator</td><td>" + esc(c ? c.name : "?") + "<br>" + esc(c ? c.address : "") + ", " + esc(c ? c.city : "") + " " + esc(c ? c.zip : "") + "</td></tr>" +
+    "<tr><td class=\"k\">Service</td><td>" + esc(r.service) + (c ? " — " + (c.kind === "grease" ? "grease trap" : "septic tank") + ", " + fmtGal(c.tank) + " gal" : "") + "</td></tr>" +
+    "<tr><td class=\"k\">Gallons collected</td><td><b>" + fmtGal(r.gallons) + "</b></td></tr>" +
+    "<tr><td class=\"k\">Transporter</td><td>" + esc(state.settings.company) + " (fictional demo company)</td></tr>" +
+    "<tr><td class=\"k\">Disposal site</td><td>" + esc(s ? s.name : "") + "</td></tr>" +
+    "<tr><td class=\"k\">On-site checks</td><td>" + (r.conditions.length ? esc(r.conditions.join("; ")) : "—") + "</td></tr>" +
+    "<tr><td class=\"k\">Notes</td><td>" + esc([r.photo ? "Photo note: " + r.photo : "", r.notes].filter(Boolean).join(" — ") || "—") + "</td></tr>" +
+    "</table>" +
+    "<div class=\"sigline\"><div class=\"sig\">Driver / transporter signature &amp; date</div><div class=\"sig\">Generator signature &amp; date</div></div>" +
+    "<p style=\"font-size:11.5px; color:var(--mut); margin-top:16px;\">Generated by PumpLedger (demo) from job record " + manifestNo(r) + ". Fictional sample data. A manifest records what was pumped, by whom, and where it went — keep your copy for as long as your program requires (VERIFY the retention rule).</p></div>" +
+    "<div class=\"toolbar\"><button class=\"btn\" id=\"mPrintBtn\">Print this manifest</button><button class=\"btn secondary\" id=\"mCloseBtn\">Close</button></div>";
+}
+function showManifest(recId){
+  var r = state.records.find(function(x){ return x.id === recId; });
+  if(!r){ $("manifestDoc").innerHTML = ""; currentManifestId = null; return; }
+  currentManifestId = recId;
+  $("manifestDoc").innerHTML = manifestHtml(r);
+  $("mPrintBtn").addEventListener("click", function(){
+    var rec = state.records.find(function(x){ return x.id === currentManifestId; }); if(!rec) return;
+    $("printArea").innerHTML = manifestHtml(rec).replace(/<div class="toolbar">[\s\S]*?<\/div>$/, "");
+    window.print();
+  });
+  $("mCloseBtn").addEventListener("click", function(){ $("manifestDoc").innerHTML = ""; currentManifestId = null; });
+}
+function renderManifests(){
+  var recs = state.records.slice().sort(function(a, b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : b.id - a.id); }).slice(0, 40);
+  $("manifestBody").innerHTML = recs.map(function(r){ var c = customerById(r.customerId);
+    return "<tr><td><b>" + manifestNo(r) + "</b></td><td>" + fmtDate(r.date) + "</td><td>" + esc(c ? c.name : "?") + "</td><td>" + esc(r.service) + "</td><td>" + fmtGal(r.gallons) + "</td><td>" + esc((siteById(r.siteId)||{}).name || "") + "</td><td><button class=\"btn small\" data-manifest=\"" + r.id + "\">View manifest</button></td></tr>";
+  }).join("");
+  $("manifestEmpty").style.display = state.records.length ? "none" : "block";
+  var btns = document.querySelectorAll("[data-manifest]");
+  for(var i=0;i<btns.length;i++){ btns[i].addEventListener("click", function(){ showManifest(Number(this.getAttribute("data-manifest"))); }); }
+  if(currentManifestId !== null){ if(state.records.some(function(r){ return r.id === currentManifestId; })) showManifest(currentManifestId); else { $("manifestDoc").innerHTML = ""; currentManifestId = null; } }
+}
+
+/* ---------- county report ---------- */
+function repRange(){
+  var preset = $("repPreset").value, f = $("repFrom").value, t = $("repTo").value;
+  if(preset === "quarter") return quarterRange(0);
+  if(preset === "lastquarter") return quarterRange(-1);
+  if(preset === "month"){ var now = new Date(); return {from: dISO(new Date(now.getFullYear(), now.getMonth(), 1)), to: todayISO()}; }
+  return {from: f || "0000-01-01", to: t || "9999-12-31"};
+}
+function applyPreset(){
+  var r = repRange();
+  if($("repPreset").value !== "custom"){ $("repFrom").value = r.from; $("repTo").value = r.to; }
+  renderReports();
+}
+function groupRowsHtml(groups, emptyLabel){
+  return groups.length ? groups.map(function(g){ return "<tr><td>" + esc(g.label) + "</td><td>" + g.jobs + "</td><td>" + fmtGal(g.gallons) + "</td></tr>"; }).join("") : "<tr><td colspan=\"3\" style=\"color:var(--mut);\">" + emptyLabel + "</td></tr>";
+}
+function buildCountyReport(from, to){
+  var recs = recordsInRange(from, to);
+  var total = sumGal(recs);
+  function block(title, groups){ return title + ":\n" + (groups.length ? groups.map(function(g){ return "  " + g.label + " — " + g.jobs + " jobs, " + fmtGal(g.gallons) + " gal"; }).join("\n") : "  (none in range)"); }
+  return "PUMP-OUT & DISPOSAL REPORT — " + state.settings.county.toUpperCase() + " (GENERIC FORMAT — VERIFY)\n" +
+    "Company: " + state.settings.company + " (fictional demo data)\n" +
+    "Period: " + fmtDate(from) + " to " + fmtDate(to) + "\n" +
+    "Jobs completed: " + recs.length + "\n" +
+    "Total gallons collected: " + fmtGal(total) + "\n\n" +
+    block("Gallons by disposal site", groupTotals(recs, function(r){ return r.siteId; }, function(r){ return (siteById(r.siteId)||{}).name || r.siteId; })) + "\n\n" +
+    block("Gallons by service", groupTotals(recs, function(r){ return r.service; }, function(r){ return r.service; })) + "\n\n" +
+    block("Gallons by town", groupTotals(recs, function(r){ var c = customerById(r.customerId); return c ? c.city : "?"; }, function(r){ var c = customerById(r.customerId); return c ? c.city : "Unknown"; })) + "\n\n" +
+    "VERIFY: county/city reporting forms, fields, and deadlines vary — confirm yours before filing.\n" +
+    "Generated " + fmtDate(todayISO()) + " by PumpLedger (demo).";
+}
+function renderReports(){
+  var r = repRange();
+  var recs = recordsInRange(r.from, r.to);
+  var total = sumGal(recs);
+  $("repGal").textContent = fmtGal(total);
+  $("repJobs").textContent = recs.length;
+  $("repAvg").textContent = recs.length ? fmtGal(Math.round(total / recs.length)) : "—";
+  $("repBySite").innerHTML = groupRowsHtml(groupTotals(recs, function(x){ return x.siteId; }, function(x){ return (siteById(x.siteId)||{}).name || x.siteId; }), "No jobs in range");
+  $("repByService").innerHTML = groupRowsHtml(groupTotals(recs, function(x){ return x.service; }, function(x){ return x.service; }), "No jobs in range");
+  $("repByCity").innerHTML = groupRowsHtml(groupTotals(recs, function(x){ var c = customerById(x.customerId); return c ? c.city : "?"; }, function(x){ var c = customerById(x.customerId); return c ? c.city : "Unknown"; }), "No jobs in range");
+  $("repByZip").innerHTML = groupRowsHtml(groupTotals(recs, function(x){ var c = customerById(x.customerId); return c ? c.zip : "?"; }, function(x){ var c = customerById(x.customerId); return c ? c.zip : "Unknown"; }), "No jobs in range");
+  $("countyReportText").textContent = buildCountyReport(r.from, r.to);
+}
+$("repPreset").addEventListener("change", applyPreset);
+$("repFrom").addEventListener("change", function(){ $("repPreset").value = "custom"; renderReports(); });
+$("repTo").addEventListener("change", function(){ $("repPreset").value = "custom"; renderReports(); });
+$("repCsvBtn").addEventListener("click", function(){
+  function q(x){ return '"' + String(x==null?"":x).replace(/"/g,'""') + '"'; }
+  var r = repRange();
+  var recs = recordsInRange(r.from, r.to).slice().sort(function(a, b){ return a.date < b.date ? -1 : 1; });
+  var head = ["Date","Manifest","Customer","Address","Town","ZIP","Service","Gallons","Disposal site","On-site checks","Notes"];
+  var lines = [head.map(q).join(",")];
+  recs.forEach(function(x){ var c = customerById(x.customerId);
+    lines.push([x.date, manifestNo(x), c ? c.name : "", c ? c.address : "", c ? c.city : "", c ? c.zip : "", x.service, x.gallons, (siteById(x.siteId)||{}).name || "", x.conditions.join("; "), [x.photo, x.notes].filter(Boolean).join(" — ")].map(q).join(",")); });
+  var blob = new Blob([lines.join("\n")], {type:"text/csv"});
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "pumpledger-records-" + r.from + "-to-" + r.to + ".csv"; document.body.appendChild(a); a.click(); a.remove();
+  toast("Records CSV downloaded — " + recs.length + " jobs, " + fmtGal(sumGal(recs)) + " gallons.");
+});
+$("repPrintBtn").addEventListener("click", function(){
+  var r = repRange();
+  $("printArea").innerHTML = "<h2>" + esc(state.settings.company) + " — pump-out &amp; disposal report (" + esc(state.settings.county) + ", generic format — VERIFY)</h2><pre style=\"white-space:pre-wrap; font-size:12px;\">" + esc(buildCountyReport(r.from, r.to)) + "</pre>";
+  window.print();
+});
+$("repCopyBtn").addEventListener("click", function(){
+  var r = repRange(), text = buildCountyReport(r.from, r.to);
+  function done(){ toast("Report copied — paste it wherever the county wants it."); }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done, function(){ toast("Copy blocked by the browser — select the report text and copy it manually."); }); }
+  else toast("Select the report text and copy it manually.");
+});
+
+/* ---------- due soon ---------- */
+function reminderLetter(c, info){
+  var kindWord = c.kind === "grease" ? "grease trap" : "septic tank";
+  var since = info.lastPump ? "was last pumped on " + fmtDate(info.lastPump) : "has no pump-out in our records";
+  var dueLine = info.status === "none" ? "If it hasn't been pumped in the last few years, it's due on age alone."
+    : (info.dueDays < 0 ? "It was due on " + fmtDate(info.due) + " — " + overduePhrase(c, info) + "." : "It comes due on " + fmtDate(info.due) + ".");
+  return "Subject: Time for a pump-out — " + c.address + "\n\n" +
+    "Hi " + c.name + ",\n\n" +
+    "Our records show the " + kindWord + " at " + c.address + ", " + c.city + " " + since + ". " + dueLine + "\n\n" +
+    "Tanks pumped on schedule avoid backups, drainfield damage, and emergency call-outs — and we already have route days in your area. Reply to this letter or call [your phone] and we'll get you on the schedule.\n\n" +
+    "Thanks,\n" + state.settings.company + "\n(via PumpLedger — demo letter, copy it into your own mail or text to send)";
+}
+function dueCard(x, band){
+  var c = x.c, info = x.info;
+  var cls = band === "overdue" ? "" : (band === "soon" ? "amber" : "grey");
+  return "<div class=\"duecard " + cls + "\" data-cid=\"" + c.id + "\"><h3>" + esc(c.name) + " " + statusPill(info) + "</h3>" +
+    "<div class=\"meta\">" + esc(c.address) + ", " + esc(c.city) + " " + esc(c.zip) + " · " + (c.kind === "grease" ? "Grease trap" : "Septic tank") + " " + fmtGal(c.tank) + " gal · every " + c.intervalMonths + " months<br>" +
+    "Last pumped: <b>" + (info.lastPump ? fmtDate(info.lastPump) : "no record") + "</b> · Due: <b>" + (info.due ? fmtDate(info.due) : "—") + "</b> · <b>" + esc(overduePhrase(c, info)) + "</b>" + (c.lastReminded ? " · Reminder sent " + fmtDate(c.lastReminded) : " · Not reminded yet") + "</div>" +
+    "<textarea rows=\"10\" class=\"due-letter\">" + esc(reminderLetter(c, info)) + "</textarea>" +
+    "<div style=\"margin-top:10px;\"><button class=\"btn small\" data-due=\"copy\" data-id=\"" + c.id + "\">Copy letter</button><button class=\"btn small secondary\" data-due=\"mark\" data-id=\"" + c.id + "\">Mark as reminded</button><button class=\"btn small secondary\" data-due=\"history\" data-id=\"" + c.id + "\">History</button></div></div>";
+}
+function renderDue(){
+  var infos = state.customers.map(function(c){ return {c:c, info:dueInfo(c)}; });
+  var overdue = infos.filter(function(x){ return x.info.status === "overdue" || x.info.status === "none"; }).sort(function(a, b){ return (a.info.due || "0000") < (b.info.due || "0000") ? -1 : 1; });
+  var soon = infos.filter(function(x){ return x.info.status === "soon"; }).sort(function(a, b){ return a.info.due < b.info.due ? -1 : 1; });
+  var soon90 = infos.filter(function(x){ return x.info.status === "soon90"; }).sort(function(a, b){ return a.info.due < b.info.due ? -1 : 1; });
+  var total = overdue.length + soon.length + soon90.length;
+  $("dueCount").textContent = total ? overdue.length + " overdue · " + soon.length + " due in 30 days · " + soon90.length + " due in 90 days" : "Nobody is due";
+  $("dueEmpty").style.display = total ? "none" : "block";
+  var html = "";
+  if(overdue.length) html += "<h3 style=\"color:var(--red); margin:6px 0 12px;\">Overdue — win these back first</h3>" + overdue.map(function(x){ return dueCard(x, "overdue"); }).join("");
+  if(soon.length) html += "<h3 style=\"color:var(--amber); margin:18px 0 12px;\">Due in the next 30 days</h3>" + soon.map(function(x){ return dueCard(x, "soon"); }).join("");
+  if(soon90.length) html += "<h3 style=\"color:var(--mut); margin:18px 0 12px;\">Due in 31–90 days</h3>" + soon90.map(function(x){ return dueCard(x, "soon90"); }).join("");
+  $("dueWrap").innerHTML = html;
+  var btns = document.querySelectorAll("#dueWrap button");
+  for(var i=0;i<btns.length;i++){ btns[i].addEventListener("click", onDueAction); }
+}
+function onDueAction(){
+  var id = Number(this.getAttribute("data-id")), act = this.getAttribute("data-due");
+  var c = customerById(id); if(!c) return;
+  var card = this.closest(".duecard");
+  if(act === "copy"){
+    var ta = card.querySelector(".due-letter"); ta.select();
+    function done(){ toast("Reminder letter copied — paste it into your mail or text to " + c.name + "."); }
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(ta.value).then(done, function(){ try{ document.execCommand("copy"); }catch(e){} done(); }); }
+    else { try{ document.execCommand("copy"); }catch(e){} done(); }
+  }
+  if(act === "mark"){ c.lastReminded = todayISO(); save(); renderDue(); renderCustomers(); toast("Marked — " + c.name + " reminded today."); }
+  if(act === "history"){ showView("customers"); showHistory(c); }
+}
+
+/* ---------- pilot ---------- */
+function pilotGate(){ $("pilotSubmit").disabled = !$("pilotTerms").checked; }
+$("pilotTerms").addEventListener("change", pilotGate);
+$("pilotSubmit").addEventListener("click", function(){
+  var subject = "PumpLedger pilot request — " + ($("pilotCompany").value.trim() || "Records Setup");
+  var body = "Hi PumpLedger team,\n\nI'd like the $199 Records Setup pilot.\n\nName: " + $("pilotName").value.trim() + "\nCompany: " + $("pilotCompany").value.trim() + "\nEmail: " + $("pilotEmail").value.trim() + "\nCustomers on our list: " + ($("pilotCustomers").value || "not sure yet") + "\n\nI understand PumpLedger digitizes the records I provide and produces my next county report from them, I stay the account holder, and nothing is billed until the pilot is confirmed by email.";
+  window.location.href = "mailto:whitewolfbackoffice@gmail.com?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+});
+
+/* ---------- data controls ---------- */
+$("resetDataBtn").addEventListener("click", function(){ state = seedData(); save(); lastSavedRecordId = null; currentManifestId = null; $("manifestDoc").innerHTML = ""; renderAll(); toast("Demo data reset — the fictional Two Rivers Septic records are back."); });
+$("clearDataBtn").addEventListener("click", function(){
+  if(!confirm("Clear all customers and job records? The app will be empty (disposal sites and settings stay).")) return;
+  state.customers = []; state.records = []; lastSavedRecordId = null; currentManifestId = null; $("manifestDoc").innerHTML = "";
+  save(); renderAll(); toast("Cleared — the books are empty.");
+});
+
+/* ---------- voice entry (§9a: one press to listening) ---------- */
+function dictate(targetId){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast("Voice isn't available on this device/browser — typing works as always"); return; }
+  var rec;
+  try{ rec = new SR(); }catch(e){ toast("Voice isn't available on this device/browser — typing works as always"); return; }
+  rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 1;
+  rec.onresult = function(ev){ var t = ev.results[0][0].transcript || ""; var el = $(targetId); if(el){ el.value = t; el.dispatchEvent(new Event("input", {bubbles:true})); el.dispatchEvent(new Event("change", {bubbles:true})); } };
+  rec.onerror = function(){ toast("Didn't catch that — try again or type it"); };
+  rec.start();
+}
+var micBtns = document.querySelectorAll("[data-mic]");
+for(var m=0;m<micBtns.length;m++){ micBtns[m].addEventListener("click", function(){ dictate(this.getAttribute("data-mic")); }); }
+
+/* ---------- boot ---------- */
+function renderAll(){ renderToday(); renderJobOptions(); renderCustomers(); renderManifests(); renderReports(); renderDue(); }
+state = load();
+$("jobDate").value = todayISO();
+applyPreset();
+renderAll();
+</script>
+</body>
+</html>
