@@ -121,10 +121,45 @@
     #printArea th, #printArea td{border:1px solid #ccc; padding:6px 8px;}
     #printArea .manifestdoc{border:2px solid #000;}
   }
+  /* ===== PumpLedger v0.1.1-demo: modern app-look redesign (BirdTally pattern, navy/teal palette) ===== */
+  :root{--bar-h:64px;--shadow:0 2px 6px rgba(18,51,50,.07),0 10px 26px rgba(18,51,50,.09);}
+  body{padding-bottom:calc(var(--bar-h) + env(safe-area-inset-bottom) + 16px);}
+  header{position:sticky;top:0;z-index:40;background:linear-gradient(135deg,var(--navy),var(--navy2) 62%,#1f6f68);box-shadow:0 2px 12px rgba(18,51,50,.35);padding:12px 28px;}
+  header .mark{flex:0 0 auto;width:50px;height:50px;border-radius:15px;background:linear-gradient(145deg,#2dd4bf,#0f766e);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 3px 8px rgba(0,0,0,.25);}
+  header .logo{font-size:23px;line-height:1.1;}
+  /* Bottom tab bar. Nav buttons are static markup, so each carries real
+     icon/label spans; visible labels are shortened ("Log Job", "Clients",
+     "Manifest", "Report", "Due") so 8 tabs fit at 390px, and each
+     button's aria-label keeps the full original name. */
+  /* The bar's background is non-interactive chrome: like the toast
+     (batch-8 lesson), it must never swallow a tap meant for content
+     beneath it, so only the tab buttons themselves take pointer events. */
+  nav{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:60;background:rgba(255,255,255,.97);border-top:1px solid var(--line);border-bottom:none;box-shadow:0 -3px 16px rgba(18,51,50,.14);padding:6px 8px calc(6px + env(safe-area-inset-bottom));flex-wrap:nowrap;justify-content:center;pointer-events:none;}
+  nav button{flex:1 1 0;min-width:0;max-width:110px;min-height:56px;background:none;border-bottom:none;color:var(--mut);border-radius:14px;padding:4px 1px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-weight:700;pointer-events:auto;}
+  nav button .ic{font-size:18px;line-height:1.15;padding:3px 10px;border-radius:999px;transition:background .15s;pointer-events:none;}
+  nav button .lb{font-size:10px;letter-spacing:.1px;white-space:nowrap;pointer-events:none;}
+  nav button.active{color:var(--navy);border-bottom:none;}
+  nav button.active .ic{background:var(--accent);box-shadow:0 2px 6px rgba(15,118,110,.45);}
+  section.panel.active{animation:plTabIn .28s ease both;}
+  @keyframes plTabIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .card,.statstrip,.formcard,.duecard,.pricecard,details,.empty,.riskbanner,.verifybanner,.manifestdoc,pre.report{border-radius:16px;box-shadow:var(--shadow);}
+  table{border-radius:16px;}
+  .btn{border-radius:999px;min-height:48px;}
+  .btn.small{min-height:44px;}
+  input[type=text], input[type=number], input[type=email], input[type=date], select, textarea{border-radius:12px;}
+  .micbtn{border-radius:50%;}
+  .err,.okmsg{border-radius:12px;}
+  #toast{bottom:calc(var(--bar-h) + env(safe-area-inset-bottom) + 14px);border-radius:999px;z-index:70;pointer-events:none;}
+  /* scroll-into-view must never park a control under the fixed bar or the
+     sticky header (batch-8 lesson: real taps and keyboard focus both
+     land clear) */
+  button,input,select,textarea,a.btn,summary{scroll-margin-bottom:calc(var(--bar-h) + env(safe-area-inset-bottom) + 32px);scroll-margin-top:96px;}
+  @media print{body{padding-bottom:0;}}
 </style>
 </head>
 <body>
 <header>
+  <div class="mark" aria-hidden="true">🚛</div>
   <div>
     <div class="logo">Pump<span>Ledger</span></div>
     <div class="sub">County reporting, manifests &amp; pump-out reminders — the kitchen-table paperwork, done in the truck.</div>
@@ -138,14 +173,14 @@
   <div>Today: <b id="barToday"></b></div>
 </div>
 <nav id="mainNav">
-  <button data-view="today" class="active">Today</button>
-  <button data-view="logjob">Log a Job</button>
-  <button data-view="customers">Customers</button>
-  <button data-view="manifests">Manifests</button>
-  <button data-view="reports">County Report</button>
-  <button data-view="due">Due Soon</button>
-  <button data-view="pricing">Pricing &amp; Pilot</button>
-  <button data-view="help">Help</button>
+  <button data-view="today" class="active" aria-label="Today"><span class="ic" aria-hidden="true">🏠</span><span class="lb">Today</span></button>
+  <button data-view="logjob" aria-label="Log a Job"><span class="ic" aria-hidden="true">⛽</span><span class="lb">Log Job</span></button>
+  <button data-view="customers" aria-label="Customers"><span class="ic" aria-hidden="true">👥</span><span class="lb">Clients</span></button>
+  <button data-view="manifests" aria-label="Manifests"><span class="ic" aria-hidden="true">📋</span><span class="lb">Manifest</span></button>
+  <button data-view="reports" aria-label="County Report"><span class="ic" aria-hidden="true">📊</span><span class="lb">Report</span></button>
+  <button data-view="due" aria-label="Due Soon"><span class="ic" aria-hidden="true">🔔</span><span class="lb">Due</span></button>
+  <button data-view="pricing" aria-label="Pricing &amp; Pilot"><span class="ic" aria-hidden="true">💲</span><span class="lb">Pricing</span></button>
+  <button data-view="help" aria-label="Help"><span class="ic" aria-hidden="true">❓</span><span class="lb">Help</span></button>
 </nav>
 <main>
 <!-- ============ TODAY ============ -->
@@ -370,7 +405,7 @@
   <details><summary>How do reminders work?</summary><p><b>Due Soon</b> lists everyone overdue or due within 90 days, worst first, each with a reminder letter written from their real last-pump date. Copy the letter into your mail or text app and send it your way — the demo sends nothing itself. Mark a customer reminded and the card shows the date, so nobody gets double-lettered.</p></details>
   <details><summary>Where does my data live? How do I back it up?</summary><p>In this demo edition, everything lives <b>on this device, in this browser</b> — no account, nothing uploaded. Export the records CSV from County Report to keep a dated copy, and use Reset below to restore the fictional sample data or Clear to empty the app. Clearing your browser's site data erases your records, so export before you do.</p></details>
   <div class="toolbar" style="margin-top:16px;">
-    <a class="btn" id="emailUsBtn" href="mailto:whitewolfbackoffice@gmail.com?subject=PumpLedger%20help%20%E2%80%94%20v0.1.0-demo&amp;body=Tell%20us%20what%20you%20were%20trying%20to%20do%20and%20what%20happened%3A%0A%0A">Email us</a>
+    <a class="btn" id="emailUsBtn" href="mailto:whitewolfbackoffice@gmail.com?subject=PumpLedger%20help%20%E2%80%94%20v0.1.1-demo&amp;body=Tell%20us%20what%20you%20were%20trying%20to%20do%20and%20what%20happened%3A%0A%0A">Email us</a>
     <button class="btn secondary" id="resetDataBtn">Reset demo data</button>
     <button class="btn danger" id="clearDataBtn">Clear demo data</button>
   </div>
@@ -379,13 +414,13 @@
 </main>
 <footer>
   <div><b>PumpLedger</b> — a White Wolf Tree Service LLC · Back-Office Services product. Questions or the pilot: whitewolfbackoffice@gmail.com</div>
-  <div style="margin-top:6px;">Demo build v0.1.0-demo · All companies, people, addresses, and records shown are fictional sample data. Works offline; no account; your data stays on this device.</div>
+  <div style="margin-top:6px;">Demo build v0.1.1-demo · All companies, people, addresses, and records shown are fictional sample data. Works offline; no account; your data stays on this device.</div>
 </footer>
 <div id="toast"></div>
 <div id="printArea"></div>
 
 <script>
-var VERSION = "v0.1.0-demo";
+var VERSION = "v0.1.1-demo";
 var LS_KEY = "pumpledger_demo_v1";
 var state = null;
 var SERVICES = ["Septic pump-out", "Grease trap service", "Inspection / other"];
